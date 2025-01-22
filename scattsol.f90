@@ -269,6 +269,86 @@ module time_evol
 
         end subroutine
 
+        subroutine evolution(phi,dx,dt,Nx,Nt,c,gam,d,eta,inv_eta,tamanho)
+            implicit none
+            real(8), dimension(:,:), intent(inout) :: phi           !The field phi(i,j), i -> fields (1, ..., tamanho), j -> spacial
+                                                                    !lattice
+                                                                    
+            real(8), dimension(:,:) :: eta, inv_eta
+            real(8), intent(in) :: dx, dt, c, gam                   !parameters, dx -> spacial lattice distance, dt -> temporal one
+                                                                    !c -> velocity of the solution, gam -> lorentz gamma factor
+            integer, intent(in) :: Nx, Nt, d, tamanho               !Nx -> number of points in the sapcial lattice, Nt -> number of
+                                                                    !points in the temporal lattice, d -> parameter for the size of
+                                                                    !the vector
+            real(8), dimension(:,:), allocatable :: dxphi, phi1, phi2 
+                                                                    
+            integer :: i, j, lim, k, m                                    
+            real(8) :: x, dx_novo                                   
+
+            
+            allocate(dxphi(tamanho,d), phi1(tamanho,d), phi2(tamanho,d))
+
+            !Agora vamos calcular a derivada (em x) do campo
+            do j = 1, tamanho
+                do i = 1, Nx
+                    dxphi(j,i) = D_x(phi,j,i,dx,Nx)             !We use the function D_x to determinate the first spacial derivative of
+                enddo                                            !the field
+            enddo
+
+                
+            !We now "correct" the spacing of the spacial lattice because of the boost
+            dx_novo = dx/gam
+
+            lim = 0.5d0*(Nx-1)
+
+            do j = 1, tamanho
+                do i = 1, lim
+                    dxphi(j,i) = -c*gam*dxphi(j,i)      !Now dxphi becomes the temporal derivative of the moving solution (left kink)
+                enddo
+            enddo
+
+            do j = 1, tamanho
+                do i = lim + 1, Nx
+                    dxphi(j,i) = c*gam*dxphi(j,i)       !Now dxphi becomes the remporal derivative of the moving solution (right kink)
+                enddo
+            enddo
+
+            !The first step of the time evolution is done using Euler-Cromer method
+            do j = 1, tamanho
+                do i = 1,Nx
+                    phi1(j,i) = phi(j,i) + dt*dxphi(j,i)
+                enddo
+            enddo
+
+            open(2,file='teste.dat')        !Exporting to make a gif of the field
+            open(3,file='teste4.dat')       !Exporting to make a gif of the energy of the solutions    
+
+            !beginning the verlet method
+            do i = 1, Nt
+                do j = 1, Nx
+                    x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
+                    do k = 1,tamanho
+                        phi2(k,j) = 2*phi1(k,j) - phi(k,j) + (dt*dt)*(D2_x(phi1,k,j,dx_novo,Nx) - dsin(phi1(k,j)))    !Updating the field in
+                    enddo                                                                                        !all space
+                    write(2,*) x, (phi1(1,j), m=1,tamanho)                                                              !saving the field in the
+                                                                                                        !current position
+                    !write(3,*) x, energ_su2(phi(2,j),D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt))           !saving the energy in the
+                                                                                                        !current position
+                enddo
+                write(2,*) ''
+                write(2,*) ''
+                write(3,*) ''
+                write(3,*) ''
+                do j = 1, Nx                !Saving the next field value for repeating the verlet method
+                    phi(1,j) = phi(2,j)
+                    phi(2,j) = phi(3,j)
+                enddo
+            enddo
+            close(2)
+            close(3)
+
+
+        end subroutine
 
         !Function that computes the first spacial derivative
         real(8) function D_x(phi,k,j,dx,Nx)
@@ -303,7 +383,7 @@ module time_evol
         end
 
         !Second spatial derivative
-        real(8) function D2_x(phi, j, dx, Nx)
+        real(8) function D2_x(phi, k,  j, dx, Nx)
             implicit none
             real(8) :: dx
             real(8), intent(in), dimension(:,:) :: phi
@@ -312,15 +392,15 @@ module time_evol
             if ((j.eq.2).or.(j.eq.(Nx-1))) then
                 !D2_x = (15*3*phi(2,j) - 77*2*phi(2,j+1) + 107*2*phi(2,j+2) - 13*12*phi(2,j+3))/(12*(dx*dx)) + &
                 !(61*phi(2,j+4)-10*phi(2,j+5))/(12.d0*(dx*dx)) - dsin(phi(2,j))
-                D2_x = (phi(2,j-1) -2*phi(2,j) + phi(2,j+1))/(dx*dx)
+                D2_x = (phi(k,j-1) -2*phi(k,j) + phi(k,j+1))/(dx*dx)
                 !D2_x = -dsin(phi(2,j))
             else if (j.eq.1) then
-                D2_x = (45.d0*phi(2,j) - 154.d0*phi(2,j+1) + 214.d0*phi(2,j+2) - 156.d0*phi(2,j+3))/(12*dx*dx) + &
-                    (61.d0*phi(2,j+4)-10.d0*phi(2,j+5))/(12.d0*dx*dx)
+                D2_x = (45.d0*phi(k,j) - 154.d0*phi(k,j+1) + 214.d0*phi(k,j+2) - 156.d0*phi(k,j+3))/(12*dx*dx) + &
+                    (61.d0*phi(k,j+4)-10.d0*phi(k,j+5))/(12.d0*dx*dx)
             else if (j.eq.Nx) then
-                D2_x = (2.d0*phi(2,j) - 5.0d0*phi(2,j-1) + 4.d0*phi(2,j-2) - phi(2,j-3))/(dx*dx)
+                D2_x = (2.d0*phi(k,j) - 5.0d0*phi(k,j-1) + 4.d0*phi(k,j-2) - phi(k,j-3))/(dx*dx)
             else
-                D2_x = (-phi(2,j-2) + 16.d0*phi(2,j-1) - 30.d0*phi(2,j) + 16.d0*phi(2,j+1) - phi(2,j+2))/(12*(dx*dx))
+                D2_x = (-phi(k,j-2) + 16.d0*phi(k,j-1) - 30.d0*phi(k,j) + 16.d0*phi(k,j+1) - phi(k,j+2))/(12*(dx*dx))
             endif
 
         return
