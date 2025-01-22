@@ -361,17 +361,17 @@ program main
 
 
     !Decidindo o caso (su2, su3)
-    tamanho = 1
+    tamanho = 2
     allocate(phi0(d,tamanho), eta(tamanho,tamanho), inv_eta(tamanho,tamanho))
     
     if (tamanho.eq.1) then
         params = 1.d0
         eta = 1.d0
     else if (tamanho.eq.2) then
-        params(1) = 1.d0
-        params(2) = 1.d0
-        params(3) = 1.d0
-        params(4) = 1.d0
+        params(1) = 0.1d0
+        params(2) = 0.5d0
+        params(3) = 0.5d0
+        params(4) = 0.5d0
         eta(1,1) = 2.d0
         eta(2,2) = 2.d0
         eta(1,2) = -params(4)
@@ -414,11 +414,11 @@ program main
     if (tamanho.eq.1) then
         phi0(1,1) = pi + 0.1d0
     else if (tamanho.eq.2) then
-        phi0(1,1) = pi + 0.1d0
-        phi0(1,2) = 1.3d0
+        phi0(1,1) = 0.1d0
+        phi0(1,2) = 3.1095d0
     endif
 
-    x0 = -25.d0             !posicao inicial do bixo
+    x0 = 0             !posicao inicial do bixo
 
     call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
     
@@ -440,7 +440,7 @@ program main
         phi0(1,1) = pi + 0.1d0
         phi0(1,2) = 1.3d0
     endif
-    x0 = 25.d0
+    x0 = 0
 
     !call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
 
