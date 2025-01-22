@@ -7,31 +7,23 @@ module BPS
 
         !Main subroutine in this module, it creates (using the others functions in this module) a selfdual solution of the su2
         !theory, and gives back a vector containing the field in all of the discrete space.
-        subroutine equation(phi,tamanho,eta,params,x0,x1,dx,autodual)
+        subroutine equation(phi,tamanho,eta,inv_eta,params,x0,x1,dx,autodual)
             implicit none
             real(8), intent(inout), dimension(:,:) :: phi       !Field
-            real(8), intent(in), dimension(:,:) :: eta          
+            real(8), intent(in), dimension(:,:) :: eta, inv_eta          
             real(8), intent(in), dimension(:) :: params     
             real(8), intent(in) :: dx, x0, x1                   !Parameters, x0 gives the "position" of the kink, x1 is the border
                                                                 !of the space, dx is the spacing of the lattice
-            real(8), dimension(:,:), allocatable :: inv_eta
-            real(8), dimension(:), allocatable :: k1, k2, k3, k4, dphi
-            real(8) :: aux
+            real(8), dimension(:), allocatable :: k1, k2, k3, k4, dphi, aux2
+            real(8) :: aux, det
             integer, intent(in) :: tamanho, autodual            !autodual is a variable that tells the program if we want a kink or
                                                                 !antikink (1 -> kink, -1 -> antikink)
-            integer :: nx, nx_frente, nx_tras, sinal, i
+            integer :: nx, nx_frente, nx_tras, sinal, i, j
 
             !Allocando os vetores do Runge-Kutta
             allocate(k1(tamanho),k2(tamanho),k3(tamanho),k4(tamanho), dphi(tamanho))
+            allocate(aux2(tamanho))
 
-
-            !Calculando a inversa de Eta
-            !allocate(inv_eta(tamanho,tamanho))
-            !det = eta(1,1)*eta(2,2) - eta(1,2)*eta(2,1)
-            !inv_eta(1,1) = eta(2,2)/det
-            !inv_eta(2,2) = eta(1,1)/det
-            !inv_eta(1,2) = (-1)*eta(1,2)/det
-            !inv_eta(2,1) = (-1)*eta(2,1)/det
 
 
             !Parametros do tamanho dos vetores        
@@ -75,7 +67,66 @@ module BPS
 
                 !We have constructed the selfdual solution of the su2 theory centered in x0
 
+            else if (tamanho.eq.2) then
+
+                sinal = -1
+                do i = 1, nx_tras
+                    aux = x0 + (sinal*i*dx)
+                    
+                    do j = 1, tamanho
+                        aux2(j) = phi(i,j)
+                    enddo
+
+                    do j = 1, tamanho
+                        k1(j) = su3(aux2,inv_eta,params,j)
+                    enddo
+                    do j = 1, tamanho
+                        k2(j) = su3(aux2+(0.5d0*k1),inv_eta,params,j)
+                    enddo
+                    do j = 1, tamanho
+                        k3(j) = su3(aux2+(0.5d0*k2),inv_eta,params,j)
+                    enddo
+                    do j = 1, tamanho
+                        k4(j) = su3(aux2+(k3),inv_eta,params,j)
+                    enddo
+                    dphi = (k1+ 2*k2 +2*k3 +k4)/6.d0
+                    do j = 1, tamanho
+                        phi(i+1,j) = phi(i,j) + sinal*dphi(j)
+                    enddo
+                enddo
+
+                call invert_array(phi,1,nx_tras)
+                call invert_array(phi,2,nx_tras)
+
+                sinal = 1
+
+                do i = nx_tras, (nx_frente + nx_tras +1)
+                    aux = x0 + (sinal*i*dx)
+                    
+                    do j = 1, tamanho
+                        aux2(j) = phi(i,j)
+                    enddo
+
+                    do j = 1, tamanho
+                        k1(j) = su3(aux2,inv_eta,params,j)
+                    enddo
+                    do j = 1, tamanho
+                        k2(j) = su3(aux2+(0.5d0*k1),inv_eta,params,j)
+                    enddo
+                    do j = 1, tamanho
+                        k3(j) = su3(aux2+(0.5d0*k2),inv_eta,params,j)
+                    enddo
+                    do j = 1, tamanho
+                        k4(j) = su3(aux2+(k3),inv_eta,params,j)
+                    enddo
+                    dphi = (k1+ 2*k2 +2*k3 +k4)/6.d0
+                    do j = 1, tamanho
+                        phi(i+1,j) = phi(i,j) + sinal*dphi(j)
+                    enddo
+                enddo
             endif
+
+
             
         end subroutine equation
 
@@ -111,6 +162,29 @@ module BPS
             dphidt = 2.d0*dsin(0.5d0*phi)*sinal
         return
         end function
+                  
+        real(8) function su3(phi,inv_eta,params,n) result(dphidt)    
+            real(8) :: lamb, gam1, gam2, gam3
+            real(8), dimension(2,2) :: inv_eta
+            real(8), dimension(4) :: params
+            real(8), dimension(2) :: phi, U_phi
+            integer :: i,j,n
+                      !n define qual campo vamos avaliar a eq de 1 ordem
+            
+
+            gam1 = params(1)
+            gam2 = params(2)
+            gam3 = params(3)
+            lamb = params(4)
+
+            U_phi(1) = (-1)*gam1*dsin(phi(1)) - gam3*dsin(phi(1)-phi(2))    !Derivada do pre-potencial em relacao ao campo 1
+            U_phi(2) = (-1)*gam2*dsin(phi(2)) + gam3*dsin(phi(1)-phi(2))    ! '' campo 2
+
+            dphidt = inv_eta(n,1)*U_phi(1) + inv_eta(n,2)*U_phi(2)
+
+        end function su3
+
+
 
 end module
 
@@ -257,8 +331,7 @@ module time_evol
             implicit none
             real(8) :: phi, dxphi, dtphi
 
-            !energ_su2 = 0.5d0*(dxphi*dxphi + dtphi*dtphi) + (1.d0-dcos(phi))
-            energ_su2 = 0.5d0*(dxphi*dxphi) + (1.d0-dcos(phi))
+            energ_su2 = 0.5d0*(dxphi*dxphi + dtphi*dtphi) + (1.d0-dcos(phi))
 
         return
         end
@@ -280,18 +353,42 @@ program main
     integer, parameter :: d = 100000            !size of the vectors
 
     real(8), dimension(3,d) :: phi, dxphi       
-    real(8), dimension(:,:), allocatable :: phi0, eta       !phi0 is the initial position of the kink
+    real(8), dimension(:,:), allocatable :: phi0, eta, inv_eta      !phi0 is the initial position of the kink
     real(8), dimension(4) :: params             
     real(8) :: dx, dt, x, t                     
-    real(8) :: alpha, c, gam, aux, L, Tmax, x0
+    real(8) :: alpha, c, gam, aux, L, Tmax, x0, det
     integer :: i, j, Nx, Nt, tamanho, autodual
 
 
     !Decidindo o caso (su2, su3)
     tamanho = 1
-    allocate(phi0(d,tamanho), eta(tamanho,tamanho))
-    eta = 1.d0
-    params = 1.d0
+    allocate(phi0(d,tamanho), eta(tamanho,tamanho), inv_eta(tamanho,tamanho))
+    
+    if (tamanho.eq.1) then
+        params = 1.d0
+        eta = 1.d0
+    else if (tamanho.eq.2) then
+        params(1) = 1.d0
+        params(2) = 1.d0
+        params(3) = 1.d0
+        params(4) = 1.d0
+        eta(1,1) = 2.d0
+        eta(2,2) = 2.d0
+        eta(1,2) = -params(4)
+        eta(2,1) = eta(1,2)
+    endif
+
+
+    !Calculando a inversa de Eta (2x2)
+    if (tamanho.eq.1) then
+        inv_eta = 1.d0
+    else if (tamanho.eq.2) then
+        det = eta(1,1)*eta(2,2) - eta(1,2)*eta(2,1)
+        inv_eta(1,1) = eta(2,2)/det
+        inv_eta(2,2) = eta(1,1)/det
+        inv_eta(1,2) = (-1)*eta(1,2)/det
+        inv_eta(2,1) = (-1)*eta(2,1)/det
+    endif
 
     !Espaçamento da rede (t,x)
     dx = 0.1d0
@@ -313,29 +410,46 @@ program main
 
     !Dados iniciais via eq de bps para criar a solucao da esquerda
     autodual = 1            !Decide se kink ou antikink
-    phi0(1,1) = pi + 0.1d0
+
+    if (tamanho.eq.1) then
+        phi0(1,1) = pi + 0.1d0
+    else if (tamanho.eq.2) then
+        phi0(1,1) = pi + 0.1d0
+        phi0(1,2) = 1.3d0
+    endif
+
     x0 = -25.d0             !posicao inicial do bixo
 
-    call equation(phi0,tamanho,eta,params,x0,L,dx,autodual)
+    call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
     
     do i = 1, Nx
         phi(1,i) = phi0(i,1)
     enddo
-    
+
+    open(2,file='teste.dat')
+    do i = 1, Nx
+        write(2,*) (-L + i*dx), phi0(i,1), phi0(i,2)
+    enddo
+
     !Dados inicias para criar a solucao da direita
     autodual = 1
     phi0 = 0.d0
-    phi0(1,1) = pi + 0.1d0
+    if (tamanho.eq.1) then
+        phi0(1,1) = pi + 0.1d0
+    else if (tamanho.eq.2) then
+        phi0(1,1) = pi + 0.1d0
+        phi0(1,2) = 1.3d0
+    endif
     x0 = 25.d0
 
-    call equation(phi0,tamanho,eta,params,x0,L,dx,autodual)
+    !call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
 
     do i = 1, Nx
         phi(1,i) = phi(1,i) + phi0(i,1)
     enddo
 
 
-    call evolution(phi,dx,dt,Nx,Nt,c,gam,d)
+    !call evolution(phi,dx,dt,Nx,Nt,c,gam,d)
 
 
 end program main
