@@ -269,11 +269,12 @@ module time_evol
 
         end subroutine
 
-        subroutine evolution(phi,dx,dt,Nx,Nt,c,gam,d,eta,inv_eta,tamanho)
+        subroutine evolution_su3(phi,dx,dt,Nx,Nt,c,gam,d,eta,inv_eta,tamanho,params)
             implicit none
             real(8), dimension(:,:), intent(inout) :: phi           !The field phi(i,j), i -> fields (1, ..., tamanho), j -> spacial
                                                                     !lattice
                                                                     
+            real(8), dimension(:) :: params                                                        
             real(8), dimension(:,:) :: eta, inv_eta
             real(8), intent(in) :: dx, dt, c, gam                   !parameters, dx -> spacial lattice distance, dt -> temporal one
                                                                     !c -> velocity of the solution, gam -> lorentz gamma factor
@@ -414,6 +415,33 @@ module time_evol
             energ_su2 = 0.5d0*(dxphi*dxphi + dtphi*dtphi) + (1.d0-dcos(phi))
 
         return
+
+        real(8) function pot_su3(phi,inv_eta,params,j)
+            implicit none
+            real(8), dimension(:,:) :: phi
+            real(8), dimension(:,:) :: inv_eta
+            real(8), dimension(:) :: params
+            integer, intent(in) :: j
+            integer :: i, k
+            real(8), dimension(2) :: dU
+            real(8) :: v
+
+            dU(1) = -params(1)*dsin(phi(1,j)) - params(3)*dsin(phi(1,j)-phi(2,j))
+            dU(2) = -params(2)*dsin(phi(2,j)) + params(3)*dsin(phi(1,j)-phi(2,j))
+            
+            v = 0.d0
+
+            do i = 1, 2
+                do k = 1,2
+                    v = v + 0.5d0*inv_eta(i,k)*dU(k)
+                enddo
+            enddo
+
+            pot_su3 = v
+
+        return
+
+
         end
 
 
