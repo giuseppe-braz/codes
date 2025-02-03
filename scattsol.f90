@@ -198,7 +198,7 @@ module time_evol
     contains
 
         !main function, is the one resposible to evolve a initial solution
-        subroutine evolution(phi,dx,dt,Nx,Nt,c,gam,d)
+        subroutine evolution_su2(phi,dx,dt,Nx,Nt,c,gam,d)
             implicit none
             real(8), dimension(:,:), intent(inout) :: phi           !The field phi(i,j), i -> the time step (1,2,3), j -> spacial
                                                                     !lattice
@@ -207,16 +207,13 @@ module time_evol
             integer, intent(in) :: Nx, Nt, d                        !Nx -> number of points in the sapcial lattice, Nt -> number of
                                                                     !points in the temporal lattice, d -> parameter for the size of
                                                                     !the vector
-            real(8), dimension(:,:), allocatable :: dxphi           !This array keeps the info about the derivatives of the field
+            real(8), dimension(d) :: dxphi           !This array keeps the info about the derivatives of the field
             integer :: i, j, lim                                    
             real(8) :: x, dx_novo                                   
 
-            
-            allocate(dxphi(3,d))
-
             !Agora vamos calcular a derivada (em x) do campo
             do i = 1, Nx
-                dxphi(1,i) = D_x(phi,1,i,dx,Nx)             !We use the function D_x to determinate the first spacial derivative of
+                dxphi(i) = D_x(phi,1,i,dx,Nx)             !We use the function D_x to determinate the first spacial derivative of
                                                             !the field
             enddo
 
@@ -227,17 +224,17 @@ module time_evol
             lim = 0.5d0*(Nx-1)
 
             do i = 1, lim
-                dxphi(1,i) = -c*gam*dxphi(1,i)      !Now dxphi becomes the temporal derivative of the moving solution (left kink)
+                dxphi(i) = -c*gam*dxphi(i)      !Now dxphi becomes the temporal derivative of the moving solution (left kink)
             enddo
 
             do i = lim + 1, Nx
-                dxphi(1,i) = c*gam*dxphi(1,i)       !Now dxphi becomes the remporal derivative of the moving solution (right kink)
+                dxphi(i) = c*gam*dxphi(i)       !Now dxphi becomes the remporal derivative of the moving solution (right kink)
             enddo
 
 
             !The first step of the time evolution is done using Euler-Cromer method
             do i = 1,Nx
-                phi(2,i) = phi(1,i) + dt*dxphi(1,i)
+                phi(2,i) = phi(1,i) + dt*dxphi(i)
             enddo
 
             open(2,file='teste.dat')        !Exporting to make a gif of the field
@@ -247,7 +244,7 @@ module time_evol
             do i = 1, Nt
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
-                    phi(3,j) = 2*phi(2,j) - phi(1,j) + (dt*dt)*(D2_x(phi,j,dx_novo,Nx) - dsin(phi(2,j)))    !Updating the field in
+                    phi(3,j) = 2*phi(2,j) - phi(1,j) + (dt*dt)*(D2_x(phi,2,j,dx_novo,Nx) - dsin(phi(2,j)))    !Updating the field in
                                                                                                             !all space
                     write(2,*) x, phi(2,j)                                                              !saving the field in the
                                                                                                         !current position
@@ -388,7 +385,7 @@ module time_evol
             implicit none
             real(8) :: dx
             real(8), intent(in), dimension(:,:) :: phi
-            integer :: j, Nx
+            integer :: j, Nx, k
 
             if ((j.eq.2).or.(j.eq.(Nx-1))) then
                 !D2_x = (15*3*phi(2,j) - 77*2*phi(2,j+1) + 107*2*phi(2,j+2) - 13*12*phi(2,j+3))/(12*(dx*dx)) + &
@@ -415,6 +412,7 @@ module time_evol
             energ_su2 = 0.5d0*(dxphi*dxphi + dtphi*dtphi) + (1.d0-dcos(phi))
 
         return
+        end
 
         real(8) function pot_su3(phi,inv_eta,params,j)
             implicit none
@@ -440,8 +438,6 @@ module time_evol
             pot_su3 = v
 
         return
-
-
         end
 
 
@@ -458,7 +454,7 @@ program main
     implicit none
 
     real(8), parameter :: pi = dacos(-1.d0)
-    integer, parameter :: d = 100000            !size of the vectors
+    integer, parameter :: d = 200000            !size of the vectors
 
     real(8), dimension(3,d) :: phi, dxphi       
     real(8), dimension(:,:), allocatable :: phi0, eta, inv_eta      !phi0 is the initial position of the kink
@@ -469,7 +465,7 @@ program main
 
 
     !Decidindo o caso (su2, su3)
-    tamanho = 2
+    tamanho = 1
     allocate(phi0(d,tamanho), eta(tamanho,tamanho), inv_eta(tamanho,tamanho))
     
     if (tamanho.eq.1) then
@@ -499,7 +495,7 @@ program main
     endif
 
     !Espaçamento da rede (t,x)
-    dx = 0.1d0
+    dx = 0.01d0
     dt = dx/2.d0
     alpha = dt/dx
 
@@ -520,13 +516,13 @@ program main
     autodual = 1            !Decide se kink ou antikink
 
     if (tamanho.eq.1) then
-        phi0(1,1) = pi + 0.1d0
+        phi0(1,1) = pi + 0.001d0
     else if (tamanho.eq.2) then
         phi0(1,1) = 0.1d0
         phi0(1,2) = 3.1095d0
     endif
 
-    x0 = 0             !posicao inicial do bixo
+    x0 = 25.d0             !posicao inicial do bixo
 
     call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
     
@@ -536,7 +532,7 @@ program main
 
     open(2,file='teste.dat')
     do i = 1, Nx
-        write(2,*) (-L + i*dx), phi0(i,1), phi0(i,2)
+        write(2,*) (-L + i*dx), phi0(i,1), 4.d0*datan(dexp(-L + i*dx))
     enddo
 
     !Dados inicias para criar a solucao da direita
@@ -548,16 +544,17 @@ program main
         phi0(1,1) = pi + 0.1d0
         phi0(1,2) = 1.3d0
     endif
-    x0 = 0
 
-    !call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
+    x0 = -25.d0
+
+    call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
 
     do i = 1, Nx
         phi(1,i) = phi(1,i) + phi0(i,1)
     enddo
 
 
-    !call evolution(phi,dx,dt,Nx,Nt,c,gam,d)
+    call evolution_su2(phi,dx,dt,Nx,Nt,c,gam,d)
 
 
 end program main
