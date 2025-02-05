@@ -1,9 +1,9 @@
-set terminal png size 1920,1080 enhanced font "Times New Roman, 22"
+set terminal png size 1920,1080 enhanced font "Times New Roman, 26"
 #stats "teste4.dat" name "campo"
 #set xrange [campo_min_x:campo_max_x]
-set output 'trip_teste.png'
+set output 'su2_trip.png'
 set xrange [-10:10]
-set yrange [0:3.5]
+set yrange [0:3.2]
 set border linewidth 3.0 lc rgb "black"
 #set xtics linewidth 2.0
 #set ytics linewidth 2.0
@@ -12,17 +12,18 @@ set grid
 set xlabel "x"
 set ylabel "Valor do Campo"
 
-set style line 1 lc rgb 'black' lt 1 lw 2 pt 0
-set style line 2 lc rgb 'black' lt 2 lw 2 pt 0
-set style line 3 lc rgb 'black' lt 1 lw 2 pt 7
-set style line 4 lc rgb 'black' lt 2 lw 2 pt 7
-set style line 5 lc rgb 'black' lt 1 lw 2 pt 13
-set style line 6 lc rgb 'black' lt 2 lw 2 pt 13
-set style line 7 lc rgb 'black' lt 1 lw 2 pt 15
+set key box
+set key bottom right
 
+set style line 1 lt 1 lc rgb "black" lw 2.0 pt 5 ps 1
+set style line 2 lt 1 lc rgb "red" lw 2.0 pt 5 ps 1
+set style line 3 lt 1 lc rgb "black" lw 2.0 pt 7 ps 1
+set style line 4 lt 1 lc rgb "black" lw 2.0 pt 2 ps 1
+set style line 5 lt 1 lc rgb "red" lw 2.0 pt 7 ps 1
+set style line 6 lt 1 lc rgb "black" lw 2.0 pt 9 ps 1
+set style line 7 lt 1 lc rgb "red" lw 2.0 pt 9 ps 1
 
+mylist = "b=-2.0 b=-1.0 b=-0.5 b=0.0 b=0.5 b=1.0 b=2.0"
 
-
-
-plot for [i=1:7] sprintf("trip%d.dat",i) w l ls i  t ''
+plot for [i=1:7] sprintf("trip%d.dat",i) w linespoints linestyle i t word(mylist, i)
 	 
