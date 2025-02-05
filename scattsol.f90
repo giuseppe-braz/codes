@@ -280,7 +280,7 @@ module BPS
             real(8) :: phi, b
             integer :: sinal
 
-            dphidt = dsin(phi)*(1.d0 + (b*dcos(phi)))*sinal
+            dphidt = sinal*dsin(phi)*(1.d0 + (b*dcos(phi)))
         return
         end function
                   
@@ -386,6 +386,104 @@ module time_evol
 
 
         end subroutine
+
+
+  subroutine evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,b)
+            implicit none
+            real(8), dimension(:,:), intent(inout) :: phi           !The field phi(i,j), i -> the time step (1,2,3), j -> spacial
+                                                                    !lattice
+            real(8), intent(in) :: dx, dt, c, gam                   !parameters, dx -> spacial lattice distance, dt -> temporal one
+                                                                    !c -> velocity of the solution, gam -> lorentz gamma factor
+            integer, intent(in) :: Nx, Nt, d                        !Nx -> number of points in the sapcial lattice, Nt -> number of
+                                                                    !points in the temporal lattice, d -> parameter for the size of
+                                                                    !the vector
+            real(8), dimension(d) :: dxphi           !This array keeps the info about the derivatives of the field
+            integer :: i, j, lim                                    
+            real(8) :: x, dx_novo                                   
+            real(8) :: b
+
+            !Agora vamos calcular a derivada (em x) do campo
+            do i = 1, Nx
+                dxphi(i) = D_x(phi,1,i,dx,Nx)             !We use the function D_x to determinate the first spacial derivative of
+                                                            !the field
+            enddo
+
+                
+            !We now "correct" the spacing of the spacial lattice because of the boost
+            dx_novo = dx/gam
+
+            lim = 0.5d0*(Nx-1)
+
+            do i = 1, lim
+                dxphi(i) = -c*gam*dxphi(i)      !Now dxphi becomes the temporal derivative of the moving solution (left kink)
+            enddo
+
+            do i = lim + 1, Nx
+                dxphi(i) = c*gam*dxphi(i)       !Now dxphi becomes the remporal derivative of the moving solution (right kink)
+            enddo
+
+
+            !The first step of the time evolution is done using Euler-Cromer method
+            do i = 1,Nx
+                phi(2,i) = phi(1,i) + dt*dxphi(i)
+            enddo
+
+            open(2,file='teste.dat')        !Exporting to make a gif of the field
+            open(3,file='teste4.dat')       !Exporting to make a gif of the energy of the solutions    
+
+            !beginning the verlet method
+            do i = 1, Nt
+                do j = 1, Nx
+                    x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
+                    phi(3,j) = 2*phi(2,j) - phi(1,j) + (dt*dt)*(D2_x(phi,2,j,dx_novo,Nx) - el_su2_mod(phi(2,j),b))    !Updating the field in
+                                                                                                            !all space
+                    write(2,*) x, phi(2,j)                                                              !saving the field in the
+                                                                                                        !current position
+                    write(3,*) x, energ_su2_mod(D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt),pot_su2_mod(phi(2,j),b))           !saving the energy in the
+                                                                                                        !current position
+                enddo
+                write(2,*) ''
+                write(2,*) ''
+                write(3,*) ''
+                write(3,*) ''
+                do j = 1, Nx                !Saving the next field value for repeating the verlet method
+                    phi(1,j) = phi(2,j)
+                    phi(2,j) = phi(3,j)
+                enddo
+            enddo
+            close(2)
+            close(3)
+
+
+        end subroutine
+
+        real(8) function el_su2_mod(phi,b)
+            implicit none
+            real(8) :: phi, b
+
+            el_su2_mod = -b*dsin(phi) + 0.5d0*dsin(2*phi) + 3*b*dsin(3*phi) + 4*b*b*dsin(4*phi)
+        return
+        end
+
+        real(8) function pot_su2_mod(phi,b)
+            implicit none
+            real(8) :: phi, b
+
+            pot_su2_mod = 0.5d0*dsin(phi)*dsin(phi)*((1.d0 + 4*b*dcos(phi))**2)
+        return
+        end
+
+        real(8) function energ_su2_mod(dxphi,dtphi,pot)
+            implicit none
+            real(8) :: dxphi, dtphi, pot
+
+            energ_su2_mod = 0.5d0*(dxphi*dxphi + dtphi*dtphi) + pot
+
+        return
+        end
+
+
+
 
         subroutine evolution_su3(phi,dx,dt,Nx,Nt,c,gam,d,eta,inv_eta,tamanho,params)
             implicit none
@@ -605,7 +703,7 @@ program main
     Nt = ceiling(Tmax/dt)   !Numero de pontos temporais da rede
 
     !Parâmetros para a condição inicial do campo
-    c = 0.4d0
+    c = 0.2d0
     gam = 1/dsqrt(1 - c*c)
 
 
@@ -613,52 +711,53 @@ program main
     autodual = 1            !Decide se kink ou antikink
 
     if (tamanho.eq.1) then
-        phi0(1,1) = pi + 0.001d0
+        !phi0(1,1) = pi + 0.01d0
+        phi0(1,1) = 0.5d0*pi + 0.001d0
     else if (tamanho.eq.2) then
         phi0(1,1) = 0.1d0
         phi0(1,2) = 3.1095d0
     endif
 
-    x0 = 25.d0             !posicao inicial do bixo
+    x0 = -35.d0             !posicao inicial do bixo
 
     !call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
 
-    b(1) = -2.d0
-    b(2) = -1.d0
-    b(3) = -0.5d0
-    b(4) = 0.d0
-    b(5) = 0.5d0
-    b(6) = 1.d0
-    b(7) = 2.d0
+    !b(1) = -2.d0
+    !b(2) = -1.d0
+    !b(3) = -0.5d0
+    !b(4) = 0.d0
+    !b(5) = 0.5d0
+    !b(6) = 1.d0
+    !b(7) = 2.d0
     
-    open(1,file='trip1.dat')
-    open(2,file='trip2.dat')
-    open(3,file='trip3.dat')
-    open(4,file='trip4.dat')
-    open(5,file='trip5.dat')
-    open(6,file='trip6.dat')
-    open(7,file='trip7.dat')
+    !open(1,file='trip1.dat')
+    !open(2,file='trip2.dat')
+    !open(3,file='trip3.dat')
+    !open(4,file='trip4.dat')
+    !open(5,file='trip5.dat')
+    !open(6,file='trip6.dat')
+    !open(7,file='trip7.dat')
 
-    autodual = 1
-    x0 = 0.d0
 
-    do i = 1,7
-        phi0 = 0.d0
-        phi0(1,1) = 0.5d0*pi + 0.01d0
-        call equation_su2_mod(phi0,x0,L,dx,autodual,b(i))
-        do j = 1, Nx
-            write(i,*) (-L + j*dx), phi0(j,1)
-        enddo
-    enddo
+    !do i = 1,7
+    !    phi0 = 0.d0
+    !    phi0(1,1) = 0.5d0*pi + 0.01d0
+    !    call equation_su2_mod(phi0,x0,L,dx,autodual,b(i))
+    !    do j = 1, Nx
+    !        write(i,*) (-L + j*dx), phi0(j,1)
+    !    enddo
+    !enddo
 
-    close(1)
-    close(2)
-    close(3)
-    close(4)
-    close(5)
-    close(6)
-    close(7)
+    !close(1)
+    !close(2)
+    !close(3)
+    !close(4)
+    !close(5)
+    !close(6)
+    !close(7)
         
+    call equation_su2_mod(phi0,x0,L,dx,autodual,-2.d0)
+    !call equation_su2(phi0,x0,L,dx,autodual)
 
     do i = 1, Nx
         phi(1,i) = phi0(i,1)
@@ -673,22 +772,29 @@ program main
     autodual = 1
     phi0 = 0.d0
     if (tamanho.eq.1) then
-        phi0(1,1) = pi + 0.1d0
+        !phi0(1,1) = pi + 0.1d0
+        phi0(1,1) = 0.5d0*pi + 0.001d0
     else if (tamanho.eq.2) then
         phi0(1,1) = pi + 0.1d0
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = -25.d0
+    x0 = 35.d0
 
-    !call equation_su2(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
+    call equation_su2_mod(phi0,x0,L,dx,autodual,-2.d0)
 
     do i = 1, Nx
         phi(1,i) = phi(1,i) + phi0(i,1)
     enddo
 
+    !call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,-2.d0) 
+
+    open(2,file='teste2.dat')
+    do i = 1,Nx
+        write(2,*) (-L + i*dx), phi(1,i)
+    enddo
+    close(2)
 
     !call evolution_su2(phi,dx,dt,Nx,Nt,c,gam,d)
-
 
 end program main
