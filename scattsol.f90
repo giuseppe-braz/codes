@@ -461,7 +461,8 @@ module time_evol
             implicit none
             real(8) :: phi, b
 
-            el_su2_mod = -b*dsin(phi) + 0.5d0*dsin(2*phi) + 3*b*dsin(3*phi) + 4*b*b*dsin(4*phi)
+            !el_su2_mod = -b*dsin(phi) + 0.5d0*dsin(2*phi) + 3*b*dsin(3*phi) + 4*b*b*dsin(4*phi)
+            el_su2_mod = dsin(phi)*(1+4*b*dcos(phi))*(dcos(phi) + 8*b*dcos(phi)*dcos(phi) - 4*b)
         return
         end
 
@@ -574,11 +575,11 @@ module time_evol
             real(8), intent(in), dimension(:,:) :: phi
             integer :: k, j, Nx
 
-            if (j.eq.0) then
+            if (j.eq.1) then
                 D_x = (-137*phi(k,j)+300*phi(k,j+1)-300*phi(k,j+2)+200*phi(k,j+3)-75*phi(k,j+4)+12*phi(k,j+5))/(60*dx)
             else if (j.eq.Nx) then
                 D_x = (137*phi(k,j)-300*phi(k,j-1)+300*phi(k,j-2)-200*phi(k,j-3)+75*phi(k,j-4)-12*phi(k,j-5))/(60*dx)
-            else if((j.eq.1).or.(j.eq.Nx-1)) then
+            else if((j.eq.2).or.(j.eq.Nx-1)) then
                 D_x = (phi(k,j+1)-phi(k,j-1))/(2*dx)
             else
                 D_x = (-phi(k,j+2)+8*phi(k,j+1)-8*phi(k,j-1)+phi(k,j-2))/(12*dx)
@@ -681,7 +682,7 @@ program main
     real(8) :: dx, dt, x, t                     
     real(8) :: alpha, c, gam, aux, L, Tmax, x0, det
     integer :: i, j, Nx, Nt, tamanho, autodual
-    real(8), dimension(7) :: b
+    real(8) :: b
 
 
     !Decidindo o caso (su2, su3)
@@ -695,8 +696,8 @@ program main
     alpha = dt/dx
 
     !Tamanho da Rede (t,x)
-    L = 50
-    Tmax = 100
+    L = 100
+    Tmax = 40
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
@@ -712,51 +713,17 @@ program main
 
     if (tamanho.eq.1) then
         !phi0(1,1) = pi + 0.01d0
-        phi0(1,1) = 0.5d0*pi + 0.001d0
+        phi0(1,1) = 0.5d0*pi
     else if (tamanho.eq.2) then
         phi0(1,1) = 0.1d0
         phi0(1,2) = 3.1095d0
     endif
 
-    x0 = -35.d0             !posicao inicial do bixo
+    x0 = -10.d0             !posicao inicial do bixo
 
-    !call equation(phi0,tamanho,eta,inv_eta,params,x0,L,dx,autodual)
+    b = -1
 
-    !b(1) = -2.d0
-    !b(2) = -1.d0
-    !b(3) = -0.5d0
-    !b(4) = 0.d0
-    !b(5) = 0.5d0
-    !b(6) = 1.d0
-    !b(7) = 2.d0
-    
-    !open(1,file='trip1.dat')
-    !open(2,file='trip2.dat')
-    !open(3,file='trip3.dat')
-    !open(4,file='trip4.dat')
-    !open(5,file='trip5.dat')
-    !open(6,file='trip6.dat')
-    !open(7,file='trip7.dat')
-
-
-    !do i = 1,7
-    !    phi0 = 0.d0
-    !    phi0(1,1) = 0.5d0*pi + 0.01d0
-    !    call equation_su2_mod(phi0,x0,L,dx,autodual,b(i))
-    !    do j = 1, Nx
-    !        write(i,*) (-L + j*dx), phi0(j,1)
-    !    enddo
-    !enddo
-
-    !close(1)
-    !close(2)
-    !close(3)
-    !close(4)
-    !close(5)
-    !close(6)
-    !close(7)
-        
-    call equation_su2_mod(phi0,x0,L,dx,autodual,-2.d0)
+    call equation_su2_mod(phi0,x0,L,dx,autodual,b)
     !call equation_su2(phi0,x0,L,dx,autodual)
 
     do i = 1, Nx
@@ -781,19 +748,20 @@ program main
 
     x0 = 35.d0
 
-    call equation_su2_mod(phi0,x0,L,dx,autodual,-2.d0)
+    !call equation_su2_mod(phi0,x0,L,dx,autodual,-2.d0)
 
-    do i = 1, Nx
-        phi(1,i) = phi(1,i) + phi0(i,1)
-    enddo
-
-    !call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,-2.d0) 
+    !do i = 1, Nx
+    !    phi(1,i) = phi(1,i) + phi0(i,1)
+    !enddo
 
     open(2,file='teste2.dat')
     do i = 1,Nx
         write(2,*) (-L + i*dx), phi(1,i)
     enddo
     close(2)
+
+    call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,b) 
+
 
     !call evolution_su2(phi,dx,dt,Nx,Nt,c,gam,d)
 
