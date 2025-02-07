@@ -128,7 +128,7 @@ module BPS
               k3 = dx*su2_mod(phi(i,1)+0.5d0*k2,autodual,b)
               k4 = dx*su2_mod(phi(i,1)+k3,autodual,b)
               dphi = (k1+2*k2+2*k3+k4)/6.d0
-              phi(i+1,1) = phi(i,1)+sinal*dphi
+              phi(i+1,1) = phi(i,1) + sinal*dphi
             enddo
 
 
@@ -392,7 +392,7 @@ module time_evol
             implicit none
             real(8), dimension(:,:), intent(inout) :: phi           !The field phi(i,j), i -> the time step (1,2,3), j -> spacial
                                                                     !lattice
-            real(8), intent(in) :: dx, dt, c, gam                   !parameters, dx -> spacial lattice distance, dt -> temporal one
+            real(8), intent(in) :: dx, dt, c, gam, b                   !parameters, dx -> spacial lattice distance, dt -> temporal one
                                                                     !c -> velocity of the solution, gam -> lorentz gamma factor
             integer, intent(in) :: Nx, Nt, d                        !Nx -> number of points in the sapcial lattice, Nt -> number of
                                                                     !points in the temporal lattice, d -> parameter for the size of
@@ -400,7 +400,6 @@ module time_evol
             real(8), dimension(d) :: dxphi           !This array keeps the info about the derivatives of the field
             integer :: i, j, lim                                    
             real(8) :: x, dx_novo                                   
-            real(8) :: b
 
             !Agora vamos calcular a derivada (em x) do campo
             do i = 1, Nx
@@ -462,7 +461,7 @@ module time_evol
             real(8) :: phi, b
 
             !el_su2_mod = -b*dsin(phi) + 0.5d0*dsin(2*phi) + 3*b*dsin(3*phi) + 4*b*b*dsin(4*phi)
-            el_su2_mod = dsin(phi)*(1+4*b*dcos(phi))*(dcos(phi) + 8*b*dcos(phi)*dcos(phi) - 4*b)
+            el_su2_mod = dsin(phi)*(1+(4*b*dcos(phi)))*(dcos(phi) + (8*b*dcos(phi)*dcos(phi)) - (4*b))
         return
         end
 
@@ -691,20 +690,20 @@ program main
     
 
     !Espaçamento da rede (t,x)
-    dx = 0.1d0
+    dx = 0.01d0
     dt = dx/2.d0
     alpha = dt/dx
 
     !Tamanho da Rede (t,x)
     L = 100
-    Tmax = 40
+    Tmax = 5
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
     Nt = ceiling(Tmax/dt)   !Numero de pontos temporais da rede
 
     !Parâmetros para a condição inicial do campo
-    c = 0.2d0
+    c = 0.1d0
     gam = 1/dsqrt(1 - c*c)
 
 
@@ -719,9 +718,9 @@ program main
         phi0(1,2) = 3.1095d0
     endif
 
-    x0 = -10.d0             !posicao inicial do bixo
+    x0 = -50.d0             !posicao inicial do bixo
 
-    b = -1
+    b = -2.d0
 
     call equation_su2_mod(phi0,x0,L,dx,autodual,b)
     !call equation_su2(phi0,x0,L,dx,autodual)
@@ -740,25 +739,25 @@ program main
     phi0 = 0.d0
     if (tamanho.eq.1) then
         !phi0(1,1) = pi + 0.1d0
-        phi0(1,1) = 0.5d0*pi + 0.001d0
+        phi0(1,1) = 0.5d0*pi
     else if (tamanho.eq.2) then
         phi0(1,1) = pi + 0.1d0
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = 35.d0
+    x0 = 50.d0
 
-    !call equation_su2_mod(phi0,x0,L,dx,autodual,-2.d0)
+    call equation_su2_mod(phi0,x0,L,dx,autodual,b)
 
-    !do i = 1, Nx
-    !    phi(1,i) = phi(1,i) + phi0(i,1)
-    !enddo
-
-    open(2,file='teste2.dat')
-    do i = 1,Nx
-        write(2,*) (-L + i*dx), phi(1,i)
+    do i = 1, Nx
+        phi(1,i) = phi(1,i) + phi0(i,1)
     enddo
-    close(2)
+
+    !open(2,file='teste2.dat')
+    !do i = 1,Nx
+    !    write(2,*) (-L + i*dx), phi(1,i)
+    !enddo
+    !close(2)
 
     call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,b) 
 
