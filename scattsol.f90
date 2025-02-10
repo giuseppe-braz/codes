@@ -461,7 +461,7 @@ module time_evol
             real(8) :: phi, b
 
             !el_su2_mod = -b*dsin(phi) + 0.5d0*dsin(2*phi) + 3*b*dsin(3*phi) + 4*b*b*dsin(4*phi)
-            el_su2_mod = dsin(phi)*(1+(4*b*dcos(phi)))*(dcos(phi) + (8*b*dcos(phi)*dcos(phi)) - (4*b))
+            el_su2_mod = dsin(phi)*(1 + b*dcos(phi))*(dcos(phi)*(1 + b*dcos(phi)) - b*dsin(phi)*dsin(phi))
         return
         end
 
@@ -469,7 +469,7 @@ module time_evol
             implicit none
             real(8) :: phi, b
 
-            pot_su2_mod = 0.5d0*dsin(phi)*dsin(phi)*((1.d0 + 4*b*dcos(phi))**2)
+            pot_su2_mod = 0.5d0*dsin(phi)*dsin(phi)*((1.d0 + b*dcos(phi))**2)
         return
         end
 
@@ -690,13 +690,13 @@ program main
     
 
     !Espaçamento da rede (t,x)
-    dx = 0.01d0
+    dx = 0.1d0
     dt = dx/2.d0
     alpha = dt/dx
 
     !Tamanho da Rede (t,x)
     L = 100
-    Tmax = 5
+    Tmax = 50
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
@@ -718,7 +718,7 @@ program main
         phi0(1,2) = 3.1095d0
     endif
 
-    x0 = -50.d0             !posicao inicial do bixo
+    x0 = -30.d0             !posicao inicial do bixo
 
     b = -2.d0
 
@@ -745,13 +745,13 @@ program main
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = 50.d0
+    x0 = 100.d0
 
-    call equation_su2_mod(phi0,x0,L,dx,autodual,b)
+    !call equation_su2_mod(phi0,x0,L,dx,autodual,b)
 
-    do i = 1, Nx
-        phi(1,i) = phi(1,i) + phi0(i,1)
-    enddo
+    !do i = 1, Nx
+    !    phi(1,i) = phi(1,i) + phi0(i,1)
+    !enddo
 
     !open(2,file='teste2.dat')
     !do i = 1,Nx
