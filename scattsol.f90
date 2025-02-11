@@ -435,6 +435,7 @@ module time_evol
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
                     phi(3,j) = 2*phi(2,j) - phi(1,j) + (dt*dt)*(D2_x(phi,2,j,dx_novo,Nx) - el_su2_mod(phi(2,j),b))    !Updating the field in
+                    phi(3,j) = phi(3,j) - dt*dt*diss(x,0.5*(Nx-1)*dx_novo)*D_t(phi,3,j,dt)
                                                                                                             !all space
                     write(2,*) x, phi(2,j)                                                              !saving the field in the
                                                                                                         !current position
@@ -455,6 +456,15 @@ module time_evol
 
 
         end subroutine
+
+        real(8) function diss(x,L)
+            implicit none
+            real(8) :: x, L
+
+            diss = 2*dexp(-(x+L)) + 2*dexp((x-L))
+
+        return
+        end
 
         real(8) function el_su2_mod(phi,b)
             implicit none
@@ -594,7 +604,7 @@ module time_evol
             real(8), intent(in), dimension(:,:) :: phi
             integer :: k, j
 
-            D_t = (phi(k+1,j)-phi(k-1,j))/(2*dt)
+            D_t = (phi(k,j)-phi(k-1,j))/(dt)
 
         return
         end
@@ -695,15 +705,15 @@ program main
     alpha = dt/dx
 
     !Tamanho da Rede (t,x)
-    L = 100
-    Tmax = 50
+    L = 200
+    Tmax = 200
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
     Nt = ceiling(Tmax/dt)   !Numero de pontos temporais da rede
 
     !Parâmetros para a condição inicial do campo
-    c = 0.1d0
+    c = 0.4d0
     gam = 1/dsqrt(1 - c*c)
 
 
@@ -718,9 +728,9 @@ program main
         phi0(1,2) = 3.1095d0
     endif
 
-    x0 = -30.d0             !posicao inicial do bixo
+    x0 = -60.d0             !posicao inicial do bixo
 
-    b = -2.d0
+    b = 0.5d0
 
     call equation_su2_mod(phi0,x0,L,dx,autodual,b)
     !call equation_su2(phi0,x0,L,dx,autodual)
@@ -745,13 +755,13 @@ program main
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = 100.d0
+    x0 = 60.d0
 
-    !call equation_su2_mod(phi0,x0,L,dx,autodual,b)
+    call equation_su2_mod(phi0,x0,L,dx,autodual,b)
 
-    !do i = 1, Nx
-    !    phi(1,i) = phi(1,i) + phi0(i,1)
-    !enddo
+    do i = 1, Nx
+        phi(1,i) = phi(1,i) + phi0(i,1)
+    enddo
 
     !open(2,file='teste2.dat')
     !do i = 1,Nx

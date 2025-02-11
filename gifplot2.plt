@@ -8,4 +8,4 @@ set tics nomirror
 set grid
 set xlabel "x"
 set ylabel "Campo"
-do for [i=0:(int(campo_blocks)*0.25)] {plot "teste4.dat" index 4*i w lines lc 7 t ""}
+do for [i=0:(int(campo_blocks)*0.1)] {plot "teste4.dat" index 10*i w lines lc 7 t ""}
