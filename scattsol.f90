@@ -399,7 +399,7 @@ module time_evol
                                                                     !the vector
             real(8), dimension(d) :: dxphi           !This array keeps the info about the derivatives of the field
             integer :: i, j, lim                                    
-            real(8) :: x, dx_novo                                   
+            real(8) :: x, dx_novo, energ                                   
 
             !Agora vamos calcular a derivada (em x) do campo
             do i = 1, Nx
@@ -429,14 +429,17 @@ module time_evol
 
             open(2,file='teste.dat')        !Exporting to make a gif of the field
             open(3,file='teste4.dat')       !Exporting to make a gif of the energy of the solutions    
+            open(4,file='teste3.dat')
 
             !beginning the verlet method
             do i = 1, Nt
+                energ = 0.d0
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
                     phi(3,j) = 2*phi(2,j) - phi(1,j) + (dt*dt)*(D2_x(phi,2,j,dx_novo,Nx) - el_su2_mod(phi(2,j),b))    !Updating the field in
-                    phi(3,j) = phi(3,j) - dt*dt*diss(x,0.5*(Nx-1)*dx_novo)*D_t(phi,3,j,dt)
-                                                                                                            !all space
+                    !phi(3,j) = phi(3,j) - dt*dt*diss(x,0.5*(Nx-1)*dx_novo)*D_t(phi,3,j,dt)
+                    energ = energ & 
+                    + dx_novo*energ_su2_mod(D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt),pot_su2_mod(phi(2,j),b))
                     write(2,*) x, phi(2,j)                                                              !saving the field in the
                                                                                                         !current position
                     write(3,*) x, energ_su2_mod(D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt),pot_su2_mod(phi(2,j),b))           !saving the energy in the
@@ -446,6 +449,9 @@ module time_evol
                 write(2,*) ''
                 write(3,*) ''
                 write(3,*) ''
+                
+                write(4,*) i*dt, energ
+
                 do j = 1, Nx                !Saving the next field value for repeating the verlet method
                     phi(1,j) = phi(2,j)
                     phi(2,j) = phi(3,j)
@@ -706,7 +712,7 @@ program main
 
     !Tamanho da Rede (t,x)
     L = 200
-    Tmax = 200
+    Tmax = 250
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
@@ -730,7 +736,7 @@ program main
 
     x0 = -60.d0             !posicao inicial do bixo
 
-    b = 0.5d0
+    b = -0.5d0
 
     call equation_su2_mod(phi0,x0,L,dx,autodual,b)
     !call equation_su2(phi0,x0,L,dx,autodual)
