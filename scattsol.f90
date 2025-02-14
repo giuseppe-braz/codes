@@ -437,7 +437,7 @@ module time_evol
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
                     phi(3,j) = 2*phi(2,j) - phi(1,j) + (dt*dt)*(D2_x(phi,2,j,dx_novo,Nx) - el_su2_mod(phi(2,j),b))    !Updating the field in
-                    !phi(3,j) = phi(3,j) - dt*dt*diss(x,0.5*(Nx-1)*dx_novo)*D_t(phi,3,j,dt)
+                    phi(3,j) = phi(3,j) - dt*dt*diss(x,0.5*(Nx-1)*dx_novo)*D_t(phi,3,j,dt)
                     energ = energ & 
                     + dx_novo*energ_su2_mod(D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt),pot_su2_mod(phi(2,j),b))
                     write(2,*) x, phi(2,j)                                                              !saving the field in the
@@ -712,7 +712,7 @@ program main
 
     !Tamanho da Rede (t,x)
     L = 200
-    Tmax = 250
+    Tmax = 300
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
