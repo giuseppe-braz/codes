@@ -143,7 +143,7 @@ module BPS
             implicit none
             real(8), intent(inout), dimension(:,:) :: phi       !Field
             real(8), dimension(2,2) :: eta, inv_eta          
-            real(8),  dimension(4) :: params     
+            real(8), dimension(4) :: params     
             real(8), intent(in) :: dx, x0, x1                   !Parameters, x0 gives the "position" of the kink, x1 is the border
                                                                 !of the space, dx is the spacing of the lattice
             real(8), dimension(2) :: k1, k2, k3, k4, dphi, aux2
@@ -501,9 +501,11 @@ module time_evol
 
 
 
-        subroutine evolution_su3(phi,dx,dt,Nx,Nt,c,gam,d,eta,inv_eta,tamanho,params)
+        subroutine evolution_su3(phi,dx,dt,Nx,Nt,c,gam,d,eta,inv_eta,params)
             implicit none
             real(8), dimension(:,:), intent(inout) :: phi           !The field phi(i,j), i -> fields (1, ..., tamanho), j -> spacial
+            real(8), dimension(3,d) :: phi1, phi2
+            real(8), dimension(1,d) :: dxphi1, dxphi2
                                                                     !lattice
                                                                     
             real(8), dimension(:) :: params                                                        
@@ -513,20 +515,22 @@ module time_evol
             integer, intent(in) :: Nx, Nt, d, tamanho               !Nx -> number of points in the sapcial lattice, Nt -> number of
                                                                     !points in the temporal lattice, d -> parameter for the size of
                                                                     !the vector
-            real(8), dimension(:,:), allocatable :: dxphi, phi1, phi2 
                                                                     
             integer :: i, j, lim, k, m                                    
             real(8) :: x, dx_novo                                   
 
             
-            allocate(dxphi(tamanho,d), phi1(tamanho,d), phi2(tamanho,d))
+            do i = 1,Nx
+                phi1(1,i) = phi(1,i)
+                phi2(1,i) = phi(2,i)
+            enddo
+
 
             !Agora vamos calcular a derivada (em x) do campo
-            do j = 1, tamanho
-                do i = 1, Nx
-                    dxphi(j,i) = D_x(phi,j,i,dx,Nx)             !We use the function D_x to determinate the first spacial derivative of
-                enddo                                            !the field
-            enddo
+            do i = 1, Nx
+                dxphi1(1,i) = D_x(phi1,1,i,dx,Nx)
+                dxphi2(1,i) = D_x(phi2,1,i,dx,Nx)             !We use the function D_x to determinate the first spacial derivative of
+            enddo                                            !the field
 
                 
             !We now "correct" the spacing of the spacial lattice because of the boost
@@ -534,23 +538,20 @@ module time_evol
 
             lim = 0.5d0*(Nx-1)
 
-            do j = 1, tamanho
-                do i = 1, lim
-                    dxphi(j,i) = -c*gam*dxphi(j,i)      !Now dxphi becomes the temporal derivative of the moving solution (left kink)
-                enddo
+            do i = 1, lim
+                dxphi1(1,i) = -c*gam*dxphi1(1,i)
+                dxphi2(1,i) = -c*gam*dxphi2(1,i)      !Now dxphi becomes the temporal derivative of the moving solution (left kink)
             enddo
 
-            do j = 1, tamanho
-                do i = lim + 1, Nx
-                    dxphi(j,i) = c*gam*dxphi(j,i)       !Now dxphi becomes the remporal derivative of the moving solution (right kink)
-                enddo
+            do i = 1, lim
+                dxphi1(1,i) = c*gam*dxphi1(1,i)
+                dxphi2(1,i) = c*gam*dxphi2(1,i)      !Now dxphi becomes the temporal derivative of the moving solution (left kink)
             enddo
 
             !The first step of the time evolution is done using Euler-Cromer method
-            do j = 1, tamanho
-                do i = 1,Nx
-                    phi1(j,i) = phi(j,i) + dt*dxphi(j,i)
-                enddo
+            do i = 1,Nx
+                phi1(2,i) = phi1(1,i) + dt*dxphi1(1,i)
+                phi2(2,i) = phi2(1,i) + dt*dxphi2(1,i)
             enddo
 
             open(2,file='teste.dat')        !Exporting to make a gif of the field
@@ -560,9 +561,8 @@ module time_evol
             do i = 1, Nt
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
-                    do k = 1,tamanho
-                        phi2(k,j) = 2*phi1(k,j) - phi(k,j) + (dt*dt)*(D2_x(phi1,k,j,dx_novo,Nx) - dsin(phi1(k,j)))    !Updating the field in
-                    enddo                                                                                        !all space
+                    phi1(3,j) = 2*phi1(2,j) - phi1(1,j) & 
+                        + (dt*dt)*(D2_x(phi1,2,j,dx_novo,Nx) - #)    !Updating the field in
                     write(2,*) x, (phi1(1,j), m=1,tamanho)                                                              !saving the field in the
                                                                                                         !current position
                     !write(3,*) x, energ_su2(phi(2,j),D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt))           !saving the energy in the
@@ -582,6 +582,46 @@ module time_evol
 
 
         end subroutine
+
+        real(8) function el_su3_1(phi1,phi2,params)
+            implicit none
+            real(8), intent(in) :: phi1, phi2
+            real(8), dimension(:) :: params
+            real(8) :: g1, g2, g2, lmb
+
+            g1 = params(1)
+            g2 = params(2)
+            g3 = params(3)
+            lmb = params(4)
+
+
+            el_su3_1 = (-2*dcos(phi1)*dsin(phi1)*g1*g1 + g3*((2-lmb)*dcos(phi1-phi2)*dsin(phi2)*g2))/(lmb*lmb - 4) &
+                + g3*((lmb-2)*dsin(2*(phi1-phi2))*g3)/(lmb*lmb-4) &
+                + g1*(-g2*lmb*dcos(phi1)*dsin(phi2)+(lmb-2)*dsin(2*phi1 - phi2)*g3)/(lmb*lmb-4)
+
+        return
+        end
+
+
+        real(8) function el_su3_2(phi1,phi2,params)
+            implicit none
+            real(8), intent(in) :: phi1, phi2
+            real(8), dimension(:) :: params
+            real(8) :: g1, g2, g2, lmb
+
+            g1 = params(1)
+            g2 = params(2)
+            g3 = params(3)
+            lmb = params(4)
+
+
+            el_su3_2 = (-2*dcos(phi2)*dsin(phi2)*g2*g2 + g3*((2-lmb)*dsin(phi1-2*phi2)*g2))/(lmb*lmb - 4) &
+                + g3*((2-lmb)*dsin(2*(phi1-phi2))*g3)/(lmb*lmb-4) &
+                + dsin(phi1)*g1*(-lmb*dcos(phi2)*g2+(2-lmb)*dcos(phi1 - phi2)*g3)/(lmb*lmb-4)
+
+        return
+        end
+
 
         !Function that computes the first spacial derivative
         real(8) function D_x(phi,k,j,dx,Nx)
