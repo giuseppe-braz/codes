@@ -139,10 +139,10 @@ module BPS
 
 
 
-         subroutine equation_su3(phi,x0,x1,dx,autodual)
+         subroutine equation_su3(phi,x0,x1,dx,autodual,eta,inv_eta,params)
             implicit none
             real(8), intent(inout), dimension(:,:) :: phi       !Field
-            real(8), dimension(2,2) :: eta, inv_eta          
+            real(8), dimension(:,:) :: eta, inv_eta          
             real(8), dimension(4) :: params     
             real(8), intent(in) :: dx, x0, x1                   !Parameters, x0 gives the "position" of the kink, x1 is the border
                                                                 !of the space, dx is the spacing of the lattice
@@ -156,23 +156,7 @@ module BPS
             !Allocando os vetores do Runge-Kutta
             !allocate(k1(tamanho),k2(tamanho),k3(tamanho),k4(tamanho), dphi(tamanho))
 
-            params(1) = 0.1d0         !gamma1
-            params(2) = 0.5d0         !gamma2  
-            params(3) = 0.5d0       !gamma3
-            params(4) = 0.5d0       !lambda
-
-            !matrix
-            eta(1,1) = 2.d0
-            eta(2,2) = 2.d0
-            eta(1,2) = -params(4)
-            eta(2,1) = eta(1,2)
-
             !Inverse matrix
-            det = eta(1,1)*eta(2,2) - eta(1,2)*eta(2,1)
-            inv_eta(1,1) = eta(2,2)/det
-            inv_eta(2,2) = eta(1,1)/det
-            inv_eta(1,2) = (-1)*eta(1,2)/det
-            inv_eta(2,1) = (-1)*eta(2,1)/det
 
 
             !Parametros do tamanho dos vetores        
@@ -512,7 +496,7 @@ module time_evol
             real(8), dimension(:,:) :: eta, inv_eta
             real(8), intent(in) :: dx, dt, c, gam                   !parameters, dx -> spacial lattice distance, dt -> temporal one
                                                                     !c -> velocity of the solution, gam -> lorentz gamma factor
-            integer, intent(in) :: Nx, Nt, d, tamanho               !Nx -> number of points in the sapcial lattice, Nt -> number of
+            integer, intent(in) :: Nx, Nt, d                       !Nx -> number of points in the sapcial lattice, Nt -> number of
                                                                     !points in the temporal lattice, d -> parameter for the size of
                                                                     !the vector
                                                                     
@@ -562,8 +546,8 @@ module time_evol
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
                     phi1(3,j) = 2*phi1(2,j) - phi1(1,j) & 
-                        + (dt*dt)*(D2_x(phi1,2,j,dx_novo,Nx) - #)    !Updating the field in
-                    write(2,*) x, (phi1(1,j), m=1,tamanho)                                                              !saving the field in the
+                        + (dt*dt)*(D2_x(phi1,2,j,dx_novo,Nx) - 0.d0)    !Updating the field in
+                    write(2,*) x, (phi1(1,j), m=1,2)                                                              !saving the field in the
                                                                                                         !current position
                     !write(3,*) x, energ_su2(phi(2,j),D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt))           !saving the energy in the
                                                                                                         !current position
@@ -587,7 +571,7 @@ module time_evol
             implicit none
             real(8), intent(in) :: phi1, phi2
             real(8), dimension(:) :: params
-            real(8) :: g1, g2, g2, lmb
+            real(8) :: g1, g2, g3, lmb
 
             g1 = params(1)
             g2 = params(2)
@@ -607,7 +591,7 @@ module time_evol
             implicit none
             real(8), intent(in) :: phi1, phi2
             real(8), dimension(:) :: params
-            real(8) :: g1, g2, g2, lmb
+            real(8) :: g1, g2, g3, lmb
 
             g1 = params(1)
             g2 = params(2)
@@ -741,9 +725,27 @@ program main
 
 
     !Decidindo o caso (su2, su3)
-    tamanho = 1
+    tamanho = 2
     allocate(phi0(d,tamanho), eta(tamanho,tamanho), inv_eta(tamanho,tamanho))
     
+    !Parametros gamma1, gamma2, gamma3 e lambda
+    params(1) = 0.1d0
+    params(2) = 0.5d0
+    params(3) = 0.5d0
+    params(4) = 0.5d0
+
+    !Matriz Eta para o caso de su(3):
+    if (tamanho.eq.2) then
+        eta(1,1) = 2.d0
+        eta(1,2) = -params(4)
+        eta(2,1) = eta(1,2)
+        eta(2,2) = 2.d0
+        det = eta(1,1)*eta(2,2) - eta(1,2)*eta(2,1)
+        inv_eta(1,1) = eta(2,2)/det
+        inv_eta(2,2) = eta(1,1)/det
+        inv_eta(1,2) = (-1)*eta(1,2)/det
+        inv_eta(2,1) = (-1)*eta(2,1)/det
+    endif
 
     !Espaçamento da rede (t,x)
     dx = 0.1d0
@@ -771,20 +773,22 @@ program main
         phi0(1,1) = 0.5d0*pi
     else if (tamanho.eq.2) then
         phi0(1,1) = 0.1d0
-        phi0(1,2) = 3.1095d0
+        phi0(1,2) = 1.3d0
     endif
 
     x0 = -60.d0             !posicao inicial do bixo
 
     b = -0.5d0
 
-    call equation_su2_mod(phi0,x0,L,dx,autodual,b)
+    !call equation_su2_mod(phi0,x0,L,dx,autodual,b)
     !call equation_su2(phi0,x0,L,dx,autodual)
+    call equation_su3(phi0,x0,L,dx,autodual,eta,inv_eta,params)
 
-    do i = 1, Nx
-        phi(1,i) = phi0(i,1)
+    do j = 1, tamanho
+        do i = 1, Nx
+            phi(j,i) = phi0(i,j)
+        enddo
     enddo
-
     !open(2,file='teste.dat')
     !do i = 1, Nx
     !    write(2,*) (-L + i*dx), phi0(i,1), 4.d0*datan(dexp(-L + i*dx))
@@ -797,25 +801,28 @@ program main
         !phi0(1,1) = pi + 0.1d0
         phi0(1,1) = 0.5d0*pi
     else if (tamanho.eq.2) then
-        phi0(1,1) = pi + 0.1d0
+        phi0(1,1) = 0.1d0
         phi0(1,2) = 1.3d0
     endif
 
     x0 = 60.d0
 
-    call equation_su2_mod(phi0,x0,L,dx,autodual,b)
+    !call equation_su2_mod(phi0,x0,L,dx,autodual,b)
+    call equation_su3(phi0,x0,L,dx,autodual,eta,inv_eta,params)
 
-    do i = 1, Nx
-        phi(1,i) = phi(1,i) + phi0(i,1)
+    do j = 1, tamanho
+        do i = 1, Nx
+            phi(j,i) = phi(j,i) + phi0(i,j)
+        enddo
     enddo
 
-    !open(2,file='teste2.dat')
-    !do i = 1,Nx
-    !    write(2,*) (-L + i*dx), phi(1,i)
-    !enddo
-    !close(2)
+    open(2,file='teste2.dat')
+    do i = 1,Nx
+        write(2,*) (-L + i*dx), phi(1,i), phi(2,i)
+    enddo
+    close(2)
 
-    call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,b) 
+    !call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,b) 
 
 
     !call evolution_su2(phi,dx,dt,Nx,Nt,c,gam,d)
