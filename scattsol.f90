@@ -546,19 +546,22 @@ module time_evol
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
                     phi1(3,j) = 2*phi1(2,j) - phi1(1,j) & 
-                        + (dt*dt)*(D2_x(phi1,2,j,dx_novo,Nx) - 0.d0)    !Updating the field in
-                    write(2,*) x, (phi1(1,j), m=1,2)                                                              !saving the field in the
+                        + (dt*dt)*(D2_x(phi1,2,j,dx_novo,Nx) - 0*el_su3_1(phi1(2,j),phi2(2,j),params))    !Updating the field in
+                    phi2(3,j) = 2*phi2(2,j) - phi2(1,j) & 
+                        + (dt*dt)*(D2_x(phi2,2,j,dx_novo,Nx) - 0*el_su3_2(phi1(2,j),phi2(2,j),params))    !Updating the field in
+                    write(2,*) x, phi1(2,j), phi2(2,j)                                                              !saving the field in the
                                                                                                         !current position
                     !write(3,*) x, energ_su2(phi(2,j),D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt))           !saving the energy in the
-                                                                                                        !current position
                 enddo
                 write(2,*) ''
                 write(2,*) ''
                 write(3,*) ''
                 write(3,*) ''
                 do j = 1, Nx                !Saving the next field value for repeating the verlet method
-                    phi(1,j) = phi(2,j)
-                    phi(2,j) = phi(3,j)
+                    phi1(1,j) = phi1(2,j)
+                    phi1(2,j) = phi1(3,j)
+                    phi2(1,j) = phi2(2,j)
+                    phi2(2,j) = phi2(3,j)
                 enddo
             enddo
             close(2)
@@ -754,14 +757,14 @@ program main
 
     !Tamanho da Rede (t,x)
     L = 200
-    Tmax = 300
+    Tmax = 150
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
     Nt = ceiling(Tmax/dt)   !Numero de pontos temporais da rede
 
     !Parâmetros para a condição inicial do campo
-    c = 0.4d0
+    c = 0.2d0
     gam = 1/dsqrt(1 - c*c)
 
 
@@ -776,7 +779,7 @@ program main
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = -60.d0             !posicao inicial do bixo
+    x0 = -90.d0             !posicao inicial do bixo
 
     b = -0.5d0
 
@@ -805,26 +808,27 @@ program main
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = 60.d0
+    x0 = 90.d0
 
     !call equation_su2_mod(phi0,x0,L,dx,autodual,b)
     call equation_su3(phi0,x0,L,dx,autodual,eta,inv_eta,params)
 
-    do j = 1, tamanho
-        do i = 1, Nx
-            phi(j,i) = phi(j,i) + phi0(i,j)
-        enddo
-    enddo
+    !do j = 1, tamanho
+    !    do i = 1, Nx
+    !        phi(j,i) = phi(j,i) + phi0(i,j)
+    !    enddo
+    !enddo
 
-    open(2,file='teste2.dat')
-    do i = 1,Nx
-        write(2,*) (-L + i*dx), phi(1,i), phi(2,i)
-    enddo
-    close(2)
+    !open(2,file='teste2.dat')
+    !do i = 1,Nx
+    !    write(2,*) (-L + i*dx), phi(1,i), phi(2,i)
+    !enddo
+    !close(2)
 
     !call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,b) 
 
 
     !call evolution_su2(phi,dx,dt,Nx,Nt,c,gam,d)
+    call evolution_su3(phi,dx,dt,Nx,Nt,c,gam,d,eta,inv_eta,params)
 
 end program main

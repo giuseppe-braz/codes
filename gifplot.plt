@@ -2,7 +2,7 @@ set terminal gif animate delay 5
 set output "gif_campo.gif"
 stats "teste.dat" name "campo"
 set xrange [campo_min_x:campo_max_x]
-set yrange [-1:13]
+set yrange [-1:8]
 set border 3
 set tics nomirror
 set grid
