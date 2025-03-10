@@ -546,17 +546,17 @@ module time_evol
                 do j = 1, Nx
                     x = (-0.5d0*(Nx-1) + (j-1))*dx_novo                                                     !Current position
                     phi1(3,j) = 2*phi1(2,j) - phi1(1,j) & 
-                        + (dt*dt)*(D2_x(phi1,2,j,dx_novo,Nx) - 0*el_su3_1(phi1(2,j),phi2(2,j),params))    !Updating the field in
+                        + (dt*dt)*(D2_x(phi1,2,j,dx_novo,Nx) - el_su3_1(phi1(2,j),phi2(2,j),params))    !Updating the field in
                     phi2(3,j) = 2*phi2(2,j) - phi2(1,j) & 
-                        + (dt*dt)*(D2_x(phi2,2,j,dx_novo,Nx) - 0*el_su3_2(phi1(2,j),phi2(2,j),params))    !Updating the field in
+                        + (dt*dt)*(D2_x(phi2,2,j,dx_novo,Nx) - el_su3_2(phi1(2,j),phi2(2,j),params))    !Updating the field in
                     write(2,*) x, phi1(2,j), phi2(2,j)                                                              !saving the field in the
                                                                                                         !current position
                     !write(3,*) x, energ_su2(phi(2,j),D_x(phi,2,j,dx_novo,Nx),D_t(phi,2,j,dt))           !saving the energy in the
                 enddo
                 write(2,*) ''
                 write(2,*) ''
-                write(3,*) ''
-                write(3,*) ''
+                !write(3,*) ''
+                !write(3,*) ''
                 do j = 1, Nx                !Saving the next field value for repeating the verlet method
                     phi1(1,j) = phi1(2,j)
                     phi1(2,j) = phi1(3,j)
@@ -574,17 +574,30 @@ module time_evol
             implicit none
             real(8), intent(in) :: phi1, phi2
             real(8), dimension(:) :: params
-            real(8) :: g1, g2, g3, lmb
+            real(8) :: g1, g2, g3, lmb, den
+            real(8), dimension(2) :: dv
 
             g1 = params(1)
             g2 = params(2)
             g3 = params(3)
             lmb = params(4)
 
+            den = 1.d0/(4.d0-lmb*lmb)
 
-            el_su3_1 = (-2*dcos(phi1)*dsin(phi1)*g1*g1 + g3*((2-lmb)*dcos(phi1-phi2)*dsin(phi2)*g2))/(lmb*lmb - 4) &
-                + g3*((lmb-2)*dsin(2*(phi1-phi2))*g3)/(lmb*lmb-4) &
-                + g1*(-g2*lmb*dcos(phi1)*dsin(phi2)+(lmb-2)*dsin(2*phi1 - phi2)*g3)/(lmb*lmb-4)
+            dv(1) = g1*dsin(phi1)*(2*g1*dcos(phi1) + (2-lmb)*g3*dcos(phi1-phi2))*den &
+                + g3*dsin(phi1-phi2)*(2-lmb)*(g1*dcos(phi1) + 2*g3*dcos(phi1-phi2))*den &
+                + g2*dsin(phi2)*(lmb*g1*dcos(phi1) - g3*(2-lmb)*dcos(phi1-phi2))*den
+            dv(2) = g1*dsin(phi1)*(lmb*g2*dcos(phi2) - g3*(2-lmb)*dcos(phi2-phi2))*den &
+                - (2-lmb)*g3*dsin(phi1-phi2)*(g2*dcos(phi2) + 2*g3*dcos(phi1-phi2))*den & 
+                + g2*dsin(phi2)*((2-lmb)*g3*dcos(phi1-phi2) + 2*g2*dcos(phi2))*den
+
+            el_su3_1 = (2*dv(1) + lmb*dv(2))*den
+
+
+            !el_su3_1 = (-2*dcos(phi1)*dsin(phi1)*g1*g1 + g3*((2-lmb)*dcos(phi1-phi2)*dsin(phi2)*g2))/(lmb*lmb - 4) &
+            !    + g3*((lmb-2)*dsin(2*(phi1-phi2))*g3)/(lmb*lmb-4) &
+            !    + g1*(-g2*lmb*dcos(phi1)*dsin(phi2)+(lmb-2)*dsin(2*phi1 - phi2)*g3)/(lmb*lmb-4)
+            
 
         return
         end
@@ -594,17 +607,28 @@ module time_evol
             implicit none
             real(8), intent(in) :: phi1, phi2
             real(8), dimension(:) :: params
-            real(8) :: g1, g2, g3, lmb
+            real(8) :: g1, g2, g3, lmb, den
+            real(8), dimension(2) :: dv
 
             g1 = params(1)
             g2 = params(2)
             g3 = params(3)
             lmb = params(4)
 
+            den = 1.d0/(4.d0-lmb*lmb)
 
-            el_su3_2 = (-2*dcos(phi2)*dsin(phi2)*g2*g2 + g3*((2-lmb)*dsin(phi1-2*phi2)*g2))/(lmb*lmb - 4) &
-                + g3*((2-lmb)*dsin(2*(phi1-phi2))*g3)/(lmb*lmb-4) &
-                + dsin(phi1)*g1*(-lmb*dcos(phi2)*g2+(2-lmb)*dcos(phi1 - phi2)*g3)/(lmb*lmb-4)
+            dv(1) = g1*dsin(phi1)*(2*g1*dcos(phi1) + (2-lmb)*g3*dcos(phi1-phi2))*den &
+                + g3*dsin(phi1-phi2)*(2-lmb)*(g1*dcos(phi1) + 2*g3*dcos(phi1-phi2))*den &
+                + g2*dsin(phi2)*(lmb*g1*dcos(phi1) - g3*(2-lmb)*dcos(phi1-phi2))*den
+            dv(2) = g1*dsin(phi1)*(lmb*g2*dcos(phi2) - g3*(2-lmb)*dcos(phi2-phi2))*den &
+                - (2-lmb)*g3*dsin(phi1-phi2)*(g2*dcos(phi2) + 2*g3*dcos(phi1-phi2))*den & 
+                + g2*dsin(phi2)*((2-lmb)*g3*dcos(phi1-phi2) + 2*g2*dcos(phi2))*den
+
+            el_su3_2 = (2*dv(2) + lmb*dv(1))*den
+
+            !el_su3_2 = (-2*dcos(phi2)*dsin(phi2)*g2*g2 + g3*((2-lmb)*dsin(phi1-2*phi2)*g2))/(lmb*lmb - 4) &
+            !    + g3*((2-lmb)*dsin(2*(phi1-phi2))*g3)/(lmb*lmb-4) &
+            !    + dsin(phi1)*g1*(-lmb*dcos(phi2)*g2+(2-lmb)*dcos(phi1 - phi2)*g3)/(lmb*lmb-4)
 
         return
         end
@@ -779,7 +803,7 @@ program main
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = -90.d0             !posicao inicial do bixo
+    x0 = -20.d0             !posicao inicial do bixo
 
     b = -0.5d0
 
@@ -804,7 +828,7 @@ program main
         !phi0(1,1) = pi + 0.1d0
         phi0(1,1) = 0.5d0*pi
     else if (tamanho.eq.2) then
-        phi0(1,1) = 0.1d0
+        phi0(1,1) = 0.1d0 
         phi0(1,2) = 1.3d0
     endif
 
