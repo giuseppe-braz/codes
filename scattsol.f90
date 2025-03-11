@@ -570,9 +570,9 @@ module time_evol
 
         end subroutine
 
-        real(8) function el_su3_1(phi1,phi2,params)
+        real(8) function el_su3_1(u1,u2,params)
             implicit none
-            real(8), intent(in) :: phi1, phi2
+            real(8), intent(in) :: u1, u2
             real(8), dimension(:) :: params
             real(8) :: g1, g2, g3, lmb, den
             real(8), dimension(2) :: dv
@@ -582,16 +582,26 @@ module time_evol
             g3 = params(3)
             lmb = params(4)
 
-            den = 1.d0/(4.d0-lmb*lmb)
+            den = 1.d0/(-4.d0+lmb*lmb)
 
-            dv(1) = g1*dsin(phi1)*(2*g1*dcos(phi1) + (2-lmb)*g3*dcos(phi1-phi2))*den &
-                + g3*dsin(phi1-phi2)*(2-lmb)*(g1*dcos(phi1) + 2*g3*dcos(phi1-phi2))*den &
-                + g2*dsin(phi2)*(lmb*g1*dcos(phi1) - g3*(2-lmb)*dcos(phi1-phi2))*den
-            dv(2) = g1*dsin(phi1)*(lmb*g2*dcos(phi2) - g3*(2-lmb)*dcos(phi2-phi2))*den &
-                - (2-lmb)*g3*dsin(phi1-phi2)*(g2*dcos(phi2) + 2*g3*dcos(phi1-phi2))*den & 
-                + g2*dsin(phi2)*((2-lmb)*g3*dcos(phi1-phi2) + 2*g2*dcos(phi2))*den
+            !dv(1) = g1*dsin(phi1)*(2*g1*dcos(phi1) + (2-lmb)*g3*dcos(phi1-phi2))*den &
+            !    + g3*dsin(phi1-phi2)*(2-lmb)*(g1*dcos(phi1) + 2*g3*dcos(phi1-phi2))*den &
+            !    + g2*dsin(phi2)*(lmb*g1*dcos(phi1) - g3*(2-lmb)*dcos(phi1-phi2))*den
+            dv(1) = (-dsin(u1)*g1-dsin(u1-u2)*g3)*(-lmb*dcos(u1-u2)*g3+2*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
+                + (-dsin(u2)*g2+dsin(u1-u3)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u1)*g1+dcos(u1-u2)*g3)) &
+                + dcos(u1-u2)*g3*(lmb*(dsin(u1)*g1+dsin(u1-u2)*g3)-2*(-dsin(u2)*g2+dsin(u1-u2)*g3)) &
+                + (-dcos(u1)*g1-dcos(u1-u2)*g3)*(2*(dsin(u1)*g1+dsin(u1-u2)*g3)-lmb*(-dsin(u2)*g2+dsin(u1-u2)*g3))
+            dv(1) = 0.5d0*den*dv(1)
+            dv(2) = (-dsin(u2)*g2+dsin(u1-u2)*g3)*(-lmb*dcos(u1-u2)*g3+2*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
+                + (-dsin(u1)*g1-dsin(u1-u2)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
+                + (-dcos(u2)*g2-dcos(u1-u2)*g3)*(lmb*(dsin(u1)*g1+dsin(u1-u2)*g3)-2*(-dsin(u2)*g2+dsin(u1-u2)*g3)) &
+                + dcos(u1-u2)*g3*(2*(dsin(u1)*g1+dsin(u1-u2)*g3)-lmb*(-dsin(u2)*g2+dsin(u1-u2)*g3))
+            dv(2) = 0.5d0*den*dv(2)
+            !dv(2) = g1*dsin(phi1)*(lmb*g2*dcos(phi2) - g3*(2-lmb)*dcos(phi2-phi2))*den &
+            !    - (2-lmb)*g3*dsin(phi1-phi2)*(g2*dcos(phi2) + 2*g3*dcos(phi1-phi2))*den & 
+            !    + g2*dsin(phi2)*((2-lmb)*g3*dcos(phi1-phi2) + 2*g2*dcos(phi2))*den
 
-            el_su3_1 = (2*dv(1) + lmb*dv(2))*den
+            el_su3_1 = (-1)*(2*dv(1) + lmb*dv(2))*den
 
 
             !el_su3_1 = (-2*dcos(phi1)*dsin(phi1)*g1*g1 + g3*((2-lmb)*dcos(phi1-phi2)*dsin(phi2)*g2))/(lmb*lmb - 4) &
@@ -615,16 +625,27 @@ module time_evol
             g3 = params(3)
             lmb = params(4)
 
-            den = 1.d0/(4.d0-lmb*lmb)
+            den = 1.d0/(-4.d0+lmb*lmb)
 
-            dv(1) = g1*dsin(phi1)*(2*g1*dcos(phi1) + (2-lmb)*g3*dcos(phi1-phi2))*den &
-                + g3*dsin(phi1-phi2)*(2-lmb)*(g1*dcos(phi1) + 2*g3*dcos(phi1-phi2))*den &
-                + g2*dsin(phi2)*(lmb*g1*dcos(phi1) - g3*(2-lmb)*dcos(phi1-phi2))*den
-            dv(2) = g1*dsin(phi1)*(lmb*g2*dcos(phi2) - g3*(2-lmb)*dcos(phi2-phi2))*den &
-                - (2-lmb)*g3*dsin(phi1-phi2)*(g2*dcos(phi2) + 2*g3*dcos(phi1-phi2))*den & 
-                + g2*dsin(phi2)*((2-lmb)*g3*dcos(phi1-phi2) + 2*g2*dcos(phi2))*den
+            dv(1) = (-dsin(u1)*g1-dsin(u1-u2)*g3)*(-lmb*dcos(u1-u2)*g3+2*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
+                + (-dsin(u2)*g2+dsin(u1-u3)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u1)*g1+dcos(u1-u2)*g3)) &
+                + dcos(u1-u2)*g3*(lmb*(dsin(u1)*g1+dsin(u1-u2)*g3)-2*(-dsin(u2)*g2+dsin(u1-u2)*g3)) &
+                + (-dcos(u1)*g1-dcos(u1-u2)*g3)*(2*(dsin(u1)*g1+dsin(u1-u2)*g3)-lmb*(-dsin(u2)*g2+dsin(u1-u2)*g3))
+            dv(1) = 0.5d0*den*dv(1)
+            dv(2) = (-dsin(u2)*g2+dsin(u1-u2)*g3)*(-lmb*dcos(u1-u2)*g3+2*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
+                + (-dsin(u1)*g1-dsin(u1-u2)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
+                + (-dcos(u2)*g2-dcos(u1-u2)*g3)*(lmb*(dsin(u1)*g1+dsin(u1-u2)*g3)-2*(-dsin(u2)*g2+dsin(u1-u2)*g3)) &
+                + dcos(u1-u2)*g3*(2*(dsin(u1)*g1+dsin(u1-u2)*g3)-lmb*(-dsin(u2)*g2+dsin(u1-u2)*g3))
+            dv(2) = 0.5d0*den*dv(2)
+        
+            !dv(1) = g1*dsin(phi1)*(2*g1*dcos(phi1) + (2-lmb)*g3*dcos(phi1-phi2))*den &
+            !    + g3*dsin(phi1-phi2)*(2-lmb)*(g1*dcos(phi1) + 2*g3*dcos(phi1-phi2))*den &
+            !    + g2*dsin(phi2)*(lmb*g1*dcos(phi1) - g3*(2-lmb)*dcos(phi1-phi2))*den
+            !dv(2) = g1*dsin(phi1)*(lmb*g2*dcos(phi2) - g3*(2-lmb)*dcos(phi2-phi2))*den &
+            !    - (2-lmb)*g3*dsin(phi1-phi2)*(g2*dcos(phi2) + 2*g3*dcos(phi1-phi2))*den & 
+            !    + g2*dsin(phi2)*((2-lmb)*g3*dcos(phi1-phi2) + 2*g2*dcos(phi2))*den
 
-            el_su3_2 = (2*dv(2) + lmb*dv(1))*den
+            el_su3_2 = (-1)*(2*dv(2) + lmb*dv(1))*den
 
             !el_su3_2 = (-2*dcos(phi2)*dsin(phi2)*g2*g2 + g3*((2-lmb)*dsin(phi1-2*phi2)*g2))/(lmb*lmb - 4) &
             !    + g3*((2-lmb)*dsin(2*(phi1-phi2))*g3)/(lmb*lmb-4) &
