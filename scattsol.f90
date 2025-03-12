@@ -588,7 +588,7 @@ module time_evol
             !    + g3*dsin(phi1-phi2)*(2-lmb)*(g1*dcos(phi1) + 2*g3*dcos(phi1-phi2))*den &
             !    + g2*dsin(phi2)*(lmb*g1*dcos(phi1) - g3*(2-lmb)*dcos(phi1-phi2))*den
             dv(1) = (-dsin(u1)*g1-dsin(u1-u2)*g3)*(-lmb*dcos(u1-u2)*g3+2*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
-                + (-dsin(u2)*g2+dsin(u1-u3)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u1)*g1+dcos(u1-u2)*g3)) &
+                + (-dsin(u2)*g2+dsin(u1-u2)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u1)*g1+dcos(u1-u2)*g3)) &
                 + dcos(u1-u2)*g3*(lmb*(dsin(u1)*g1+dsin(u1-u2)*g3)-2*(-dsin(u2)*g2+dsin(u1-u2)*g3)) &
                 + (-dcos(u1)*g1-dcos(u1-u2)*g3)*(2*(dsin(u1)*g1+dsin(u1-u2)*g3)-lmb*(-dsin(u2)*g2+dsin(u1-u2)*g3))
             dv(1) = 0.5d0*den*dv(1)
@@ -613,9 +613,9 @@ module time_evol
         end
 
 
-        real(8) function el_su3_2(phi1,phi2,params)
+        real(8) function el_su3_2(u1,u2,params)
             implicit none
-            real(8), intent(in) :: phi1, phi2
+            real(8), intent(in) :: u1, u2
             real(8), dimension(:) :: params
             real(8) :: g1, g2, g3, lmb, den
             real(8), dimension(2) :: dv
@@ -628,7 +628,7 @@ module time_evol
             den = 1.d0/(-4.d0+lmb*lmb)
 
             dv(1) = (-dsin(u1)*g1-dsin(u1-u2)*g3)*(-lmb*dcos(u1-u2)*g3+2*(dcos(u2)*g2+dcos(u1-u2)*g3)) &
-                + (-dsin(u2)*g2+dsin(u1-u3)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u1)*g1+dcos(u1-u2)*g3)) &
+                + (-dsin(u2)*g2+dsin(u1-u2)*g3)*(-2*dcos(u1-u2)*g3+lmb*(dcos(u1)*g1+dcos(u1-u2)*g3)) &
                 + dcos(u1-u2)*g3*(lmb*(dsin(u1)*g1+dsin(u1-u2)*g3)-2*(-dsin(u2)*g2+dsin(u1-u2)*g3)) &
                 + (-dcos(u1)*g1-dcos(u1-u2)*g3)*(2*(dsin(u1)*g1+dsin(u1-u2)*g3)-lmb*(-dsin(u2)*g2+dsin(u1-u2)*g3))
             dv(1) = 0.5d0*den*dv(1)
@@ -796,20 +796,20 @@ program main
     endif
 
     !Espaçamento da rede (t,x)
-    dx = 0.1d0
+    dx = 0.01d0
     dt = dx/2.d0
     alpha = dt/dx
 
     !Tamanho da Rede (t,x)
     L = 200
-    Tmax = 150
+    Tmax = 50
 
     !Número de entradas dos vetores
     Nx = (2*L)/dx +1        !Numero de pontos espaciais da rede
     Nt = ceiling(Tmax/dt)   !Numero de pontos temporais da rede
 
     !Parâmetros para a condição inicial do campo
-    c = 0.2d0
+    c = 0.1d0
     gam = 1/dsqrt(1 - c*c)
 
 
@@ -820,11 +820,11 @@ program main
         !phi0(1,1) = pi + 0.01d0
         phi0(1,1) = 0.5d0*pi
     else if (tamanho.eq.2) then
-        phi0(1,1) = 0.1d0
+        phi0(1,1) = 2.75d0
         phi0(1,2) = 1.3d0
     endif
 
-    x0 = -20.d0             !posicao inicial do bixo
+    x0 = -50.d0             !posicao inicial do bixo
 
     b = -0.5d0
 
@@ -864,11 +864,11 @@ program main
     !    enddo
     !enddo
 
-    !open(2,file='teste2.dat')
-    !do i = 1,Nx
-    !    write(2,*) (-L + i*dx), phi(1,i), phi(2,i)
-    !enddo
-    !close(2)
+    open(2,file='teste2.dat')
+    do i = 1,Nx
+        write(2,*) (-L + i*dx), phi(1,i), phi(2,i)
+    enddo
+    close(2)
 
     !call evolution_su2_mod(phi,dx,dt,Nx,Nt,c,gam,d,b) 
 
